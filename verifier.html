@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Address Verification</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/spacelab/bootstrap.min.css" rel="stylesheet" integrity="sha384-L/tgI3wSsbb3f/nW9V6Yqlaw3Gj7mpE56LWrhew/c8MIhAYWZ/FNirA64AVkB5pI" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <style>
+        .jumbotron {
+            border-radius: 0 !important;
+        }
+        .full-width {
+            display:block;
+        }
+        .output-label{
+            white-space: normal;
+            line-height: 120%;
+            cursor: pointer;
+        }
+        td span{
+            margin-right: 5px;
+        }
+        [v-cloak] {
+            display:none;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // Define api endpoint for google
+        var apiEndpoint = "https://maps.googleapis.com/maps/api/geocode/json?sensor=true&address=";
+        $(function () {
+            // New vue instance
+            var app = new Vue({
+                el: '#app',
+                data: {
+                    address: "",
+                    labelOutput: "",
+                    extraData: [],
+                    isWorking: false,
+                    isError: false
+                },
+                methods: {
+                    // Formats the types that you get from google and make it readable
+                    formatTypes(types){
+                        var outputTypes = [];
+                        types.forEach(function(currentType, currentTypeIndex){
+                            var splitTypeNames = currentType.split("_");
+                            splitTypeNames.forEach(function(currentSplitTypeName, currentSplitTypeNameIndex){
+                                splitTypeNames[currentSplitTypeNameIndex] = currentSplitTypeName.charAt(0).toUpperCase() + currentSplitTypeName.slice(1);
+                            });
+                            outputTypes.push(splitTypeNames.join(' '));
+                        });
+
+                        return outputTypes;
+                    },
+                    // Call the api and fill data on page
+                    verifyAddress() {
+                        this.extraData = [];                        
+                        if (this.address === "") {
+                            this.isError = true;
+                            this.labelOutput = "Address cannot be empty!"
+                        } else {
+                            this.isWorking = true;
+                            this.$http.get(apiEndpoint + this.address)
+                                .then(function (response) {
+                                    var resultNode = response.body.results[0];
+
+                                    if(resultNode === undefined){
+                                        this.labelOutput = "Could not find address!";
+                                        this.isError = true;
+                                    }else{
+                                        this.isError = false;
+                                        this.labelOutput = resultNode.formatted_address;
+                                        this.extraData = resultNode.address_components;
+                                    }
+
+                                    this.isWorking = false;
+                                }, function (error) {
+                                    this.labelOutput = "Error connecting to service!";
+                                    this.isError = true;
+                                    this.isWorking = false;
+                                });
+                        }
+
+                    },
+                    // Returns the class for the output label
+                    getLabelClass(){
+                        return this.isError ? 'label-danger' : 'label-success';
+                    }
+                }
+            });
+        });
+    </script>
+
+    <div class="container text-center">
+        <div class="row">
+            <div id="app" class="col-md-offset-2 col-md-8 jumbotron" v-cloak>
+
+                <h2>
+                    Address Verifier
+                    <br>
+                    <small>This tool will format any address to the closest right representation of it and also give more details about the address.</small>
+                </h2>
+                <br>
+                <input type="text" class="form-control text-center" placeholder="Enter Address Here" v-model="address" v-bind:class="{disabled: isWorking}" v-on:keyup.enter="verifyAddress">
+                <br>
+                <button class="btn btn-lg btn-info btn-block" v-on:click="verifyAddress" v-bind:class="{disabled: isWorking || this.address === ''}">
+                    <span v-if="isWorking">Verifying</span>
+                    <span v-if="!isWorking">Verify</span>
+                </button>
+                <h3 v-if="labelOutput !== ''">
+                    <span class="label full-width output-label" v-bind:class="getLabelClass()">
+                        {{labelOutput}}
+                    </span>
+                </h3>
+                <table v-if="extraData.length > 0" class="table table-striped">
+                    <tr>
+                        <th class="text-center"><strong>Type</strong></th>
+                        <th class="text-center"><strong>Long Name</strong></th>
+                        <th class="text-center"><strong>Short Name</strong></th>
+                    </tr>
+                    <tr v-for="data in extraData">
+                        <td>
+                            <span class="label label-primary" v-for="type in formatTypes(data.types)">
+                                {{type}}
+                            </span> &nbsp;
+                        </td>
+                        <td>{{data.long_name}}</td>
+                        <td>{{data.short_name}}</td>
+                    </tr>
+                </table>
+            
+            <br><br>
+            &copy; 2017 <a href="https://kaushalsubedi.com/">Kaushal Subedi</a>, All Rights Reserved
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.2.1/vue.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-resource/1.2.1/vue-resource.min.js"></script>
+</body>
+
+</html>
